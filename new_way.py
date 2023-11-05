@@ -15,9 +15,10 @@ import phonenumbers
 
 path_to_tesseract = r"C:/Program Files/Tesseract-OCR/tesseract.exe"
 
-class decedent:
-    def __init__(self):
+class Person:
+    def __init__(self, text):
     # sef information
+        self.data = text
         self.docketInfo = ''
         self.nameInfo = ''
         self.addrInfo = ''
@@ -44,6 +45,8 @@ class decedent:
         self.lastCity = ''
         self.lastState = ''
         self.lastZip = ''
+        self.phone= ''
+        self.email = ''
     def set_docketInfo(self, _docketInfo):
         self.docketInfo = _docketInfo
         ###
@@ -64,28 +67,43 @@ class decedent:
 
     def set_addrInfo(self, _addrInfo):
         self.addrInfo = _addrInfo
-        splited_addr = _addrInfo.split(' ')
-        add_len = len(splited_addr)
-        last_string = splited_addr[len - 1]
-        first_string = splited_addr[2]
-        if self.isDigit(last_string) == True:
-            self.lastZip = last_string
-            self.lastState = splited_addr[add_len - 2]
-            self.lastCity = splited_addr[add_len - 3]
-            if self.isDigit(first_string) == True:
-                self.lastAddress = splited_addr[2] + " " + splited_addr[3] + " " + splited_addr[4]
-        else: 
-            self.lastState = splited_addr[add_len - 1]
-            self.lastCity = splited_addr[add_len - 2]
-            if self.isDigit(first_string) == True:
-                self.lastAddress = splited_addr[2] + " " + splited_addr[3] + " " + splited_addr[4]
-        ###
+        city_pattern = r"\b[A-Za-z\s]+\b"
+        zip_pattern = r"\b\d{5}\b"
+        state_pattern = r"\b[A-Za-z]{2}\b"
+        street_pattern = r"\b\d+\s+[\w\s]+\b"
+
+        city_match = re.search(city_pattern, _addrInfo)
+        zip_match = re.search(zip_pattern, _addrInfo)
+        state_match = re.search(state_pattern, _addrInfo)
+        street_match = re.search(street_pattern, _addrInfo)
+
+        if city_match:
+            self.lastCity = city_match.group()
+        else:
+            print("No city found.")
+
+        if zip_match:
+            self.lastZip = zip_match.group()
+        else:
+            print("No zip code found.")
+        
+        if state_match:
+            self.lastState = state_match.group()
+        else:
+            print("No city found.")
+
+        if street_match:
+            self.lastAddress = street_match.group()
+        else:
+            print("No zip code found.")
+    
     def set_extraInfo(self, _extraInfo):
         self.extraInfo = _extraInfo
-        split_info = _extraInfo.split(' ')
-        if len(split_info) > 6:
-            self.lastState = split_info[6]
-            self.lastCity = split_info[5]
+        state_pattern = r"\b[A-Za-z]{2}\b"
+        city_pattern = r"\b[A-Za-z\s]+\b"
+        city_match = re.search(city_pattern, _extraInfo)
+        state_match = re.search(state_pattern, _extraInfo)
+        
         ###
     def set_phoneInfo(self, _phoneInfo):
         self.phoneInfo = _phoneInfo
@@ -94,12 +112,31 @@ class decedent:
         matches = re.findall(pattern, _phoneInfo)
         # Join the matches into a single string
         digits = ''.join(matches)
-        parsed_number = phonenumbers.parse(digits, "US")
+        if len(digits) == 10:
+            phone_digits = digits[:10]
+        elif len(digits) == 11:
+            if digits[0] == '1':
+                phone_digits = digits[1:11]
+            else:
+                phone_digits = digits[0:10]
+        else:
+            phone_digits = digits
+        parsed_number = phonenumbers.parse(phone_digits, "US")
         # Format the parsed number as a telephone number
         formatted_number = phonenumbers.format_number(parsed_number, phonenumbers.PhoneNumberFormat.NATIONAL)
+        self.phone = formatted_number
         ###
-    def set_phoneInfo(self, _emailInfo):
-        self.emailInfo = _emailInfo    
+    def set_emailInfo(self, _emailInfo):
+        self.emailInfo = _emailInfo
+        pattern = r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"
+        # Find the first match of the pattern in the string
+        match = re.search(pattern, _emailInfo)
+        if match:
+            self.email = match.group()
+            print("Email found:", self.email)
+        else:
+            print("No email found.")    
+
     def isDigit(self, _str):
         pattern = r"\d+"
         # Find all matches of the pattern in the string 
@@ -147,6 +184,7 @@ def text_from_image(img_path):
     print(">>>>>>>>>>>> start")
     img = Image.open(img_path) 
     text = pytesseract.image_to_string(img)
+    return text
     sift_text = []
     
     lined_text0 = text.split('\n')
@@ -223,6 +261,35 @@ entries = load_pdf_list('./')
 #print(entries)
 for index in entries:
     convert_pdf2img(index)
-_text = text_from_image('2-1.png')
+_text = text_from_image('1-1.png')
 
 
+city_pattern = r"\b[A-Za-z\s]+\b"
+zip_pattern = r"\b\d{5}\b"
+
+# Find the matches of the patterns in the string
+city_match = re.search(city_pattern, _text)
+zip_match = re.search(zip_pattern, _text)
+
+if city_match:
+    city = city_match.group()
+    print("City:", city)
+else:
+    print("No city found.")
+
+if zip_match:
+    zip_code = zip_match.group()
+    print("Zip code:", zip_code)
+else:
+    print("No zip code found.")
+
+pattern = r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"
+
+# Find the first match of the pattern in the string
+match = re.search(pattern, _text)
+
+if match:
+    email = match.group()
+    print("Email found:", email)
+else:
+    print("No email found.")
