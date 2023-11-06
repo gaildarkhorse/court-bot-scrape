@@ -3,192 +3,33 @@ import pytesseract
 from PIL import Image 
 from pytesseract import pytesseract 
 from pdf2image import convert_from_path
-import requests
-from bs4 import BeautifulSoup
-import mechanicalsoup
-import re
-import pandas as pd
-import xlsxwriter
-from pathlib import Path
-import pathlib
-import phonenumbers
-
-path_to_tesseract = r"C:/Program Files/Tesseract-OCR/tesseract.exe"
-
-class Person:
-    def __init__(self, text):
-    # sef information
-        self.data = text
-        self.docketInfo = ''
-        self.nameInfo = ''
-        self.addrInfo = ''
-        self.extraInfo = ''
-        self.phoneInfo = ''
-        self.emailInfo = ''
-    # get information
-        # base information
-        self.key = ''
-        self.namePulled = ''
-        self.probateCounty = ''
-        self.probateState = ''
-        self.docketNumber = ''
-        self.probateDate = ''
-        self.dateOfDeath = ''
-        # name information
-        self.decdPreffix = ''
-        self.firstName = ''
-        self.middleName = ''
-        self.lastName = ''
-        self.suffix = ''
-        # Address information
-        self.lastAddress = ''
-        self.lastCity = ''
-        self.lastState = ''
-        self.lastZip = ''
-        self.phone= ''
-        self.email = ''
-    def set_docketInfo(self, _docketInfo):
-        self.docketInfo = _docketInfo
-        ###
-
-    def set_nameInfo(self, _nameInfo):
-        self.nameInfo = _nameInfo
-        ###
-        splitedName = _nameInfo.split(' ')
-        if len(splitedName) == 3:
-            self.firstName = splitedName[0]
-            self.middleName = splitedName[1][0]
-            self.lastName = splitedName[2]
-        if len(splitedName) == 4:
-            self.firstName = splitedName[0]
-            self.middleName = splitedName[1][0]
-            self.lastName = splitedName[2]
-            self.suffix = splitedName[3]
-
-    def set_addrInfo(self, _addrInfo):
-        self.addrInfo = _addrInfo
-        city_pattern = r"\b[A-Za-z\s]+\b"
-        zip_pattern = r"\b\d{5}\b"
-        state_pattern = r"\b[A-Za-z]{2}\b"
-        street_pattern = r"\b\d+\s+[\w\s]+\b"
-
-        city_match = re.search(city_pattern, _addrInfo)
-        zip_match = re.search(zip_pattern, _addrInfo)
-        state_match = re.search(state_pattern, _addrInfo)
-        street_match = re.search(street_pattern, _addrInfo)
-
-        if city_match:
-            self.lastCity = city_match.group()
-        else:
-            print("No city found.")
-
-        if zip_match:
-            self.lastZip = zip_match.group()
-        else:
-            print("No zip code found.")
-        
-        if state_match:
-            self.lastState = state_match.group()
-        else:
-            print("No city found.")
-
-        if street_match:
-            self.lastAddress = street_match.group()
-        else:
-            print("No zip code found.")
-    
-    def set_extraInfo(self, _extraInfo):
-        self.extraInfo = _extraInfo
-        state_pattern = r"\b[A-Za-z]{2}\b"
-        city_pattern = r"\b[A-Za-z\s]+\b"
-        city_match = re.search(city_pattern, _extraInfo)
-        state_match = re.search(state_pattern, _extraInfo)
-        
-        ###
-    def set_phoneInfo(self, _phoneInfo):
-        self.phoneInfo = _phoneInfo
-        pattern = r"\d"
-        # Find all matches of the pattern in the string
-        matches = re.findall(pattern, _phoneInfo)
-        # Join the matches into a single string
-        digits = ''.join(matches)
-        if len(digits) == 10:
-            phone_digits = digits[:10]
-        elif len(digits) == 11:
-            if digits[0] == '1':
-                phone_digits = digits[1:11]
-            else:
-                phone_digits = digits[0:10]
-        else:
-            phone_digits = digits
-        parsed_number = phonenumbers.parse(phone_digits, "US")
-        # Format the parsed number as a telephone number
-        formatted_number = phonenumbers.format_number(parsed_number, phonenumbers.PhoneNumberFormat.NATIONAL)
-        self.phone = formatted_number
-        ###
-    def set_emailInfo(self, _emailInfo):
-        self.emailInfo = _emailInfo
-        pattern = r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"
-        # Find the first match of the pattern in the string
-        match = re.search(pattern, _emailInfo)
-        if match:
-            self.email = match.group()
-            print("Email found:", self.email)
-        else:
-            print("No email found.")    
-
-    def isDigit(self, _str):
-        pattern = r"\d+"
-        # Find all matches of the pattern in the string 
-        matches = re.findall(pattern, _str)
-        if matches:
-            digits = [int(match) for match in matches]
-            return False
-        else:
-            return True
+import preprocess
+import personType
+import toExcel
 
 
-def load_pdf_list(dir_path):
-  pdf_list = []
-  entries = Path(dir_path)
-  for entry in entries.iterdir():
-    if pathlib.Path(entry).suffix == '.pdf':
-       pdf_list.append(entry)
-  return pdf_list
 
-def convert_pdf2img(pdf_path):
-   split_tup = os.path.splitext(pdf_path)
-   file_name = split_tup[0]
-   image_path = file_name + '.png'
-   images = convert_from_path(pdf_path)
-   images[0].save(image_path, 'png')
 
-def send_data_to_xlsx(xlsx_path, datalist, col_pos):
-  workbook = xlsxwriter.Workbook(xlsx_path)
-  worksheet = workbook.add_worksheet()
-  idx = 0
-  for item in datalist:
-    worksheet.write(col_pos, idx, item)
-    idx += 1
-  workbook.close() 
-
-def get_all_img_files(img_dir_path):
-    img_list =[]
-    entries = Path(img_dir_path)
-    for entry in entries.iterdir():
-        if pathlib.Path(entry).suffix == '.png':
-            img_list.append(entry)
-        return img_list
 
 def text_from_image(img_path):
     print(">>>>>>>>>>>> start")
     img = Image.open(img_path) 
     text = pytesseract.image_to_string(img)
-    return text
     sift_text = []
-    
     lined_text0 = text.split('\n')
-    #print(lined_text0)
+    cleaned_text = " ".join(lined_text0)
+    lined_text = cleaned_text.split(" ")
+    temp_lined_text = []
+    space = ''
+    for item in lined_text:
+        if(item == space):
+            continue
+        else:
+            temp_lined_text.append(item)
+    print(temp_lined_text)
+    total_text = " ".join(temp_lined_text)
+    print(total_text)
+    #return total_text
     lined_text1 = []
     decedent_start_index = -1
     petitioner_start_index = -1
@@ -257,12 +98,29 @@ def text_from_image(img_path):
     return sift_text
 
 
-entries = load_pdf_list('./')
+
+
+
+entries = preprocess.load_pdf_list('./')
 #print(entries)
 for index in entries:
-    convert_pdf2img(index)
-_text = text_from_image('1-1.png')
+    preprocess.convert_pdf2img(index)
+_text = text_from_image('3-1.png')
+index1 = _text.find('Decedent:')
+index2 = _text.find('Petitioner:')
+print(index2)
+index3 = _text.find('3.')
+substring1 = _text[:index1]
+substring2 = _text[index1 : index2]
+substring3 = _text[index2 : index3]
+print(">>>>>>>>>>>>>>", index1)
+print(">>>>>>>>>>>>>>>>>", substring1)
+print(">>>>>>>>>>>>>>", index2)
+print(">>>>>>>>>>>>>>>>>", substring2)
+print(">>>>>>>>>>>>>>", index3)
+print(">>>>>>>>>>>>>>>>>", substring3)
 
+print(_text)
 
 city_pattern = r"\b[A-Za-z\s]+\b"
 zip_pattern = r"\b\d{5}\b"
@@ -293,3 +151,39 @@ if match:
     print("Email found:", email)
 else:
     print("No email found.")
+
+
+name_pattern = r'Name: ([A-Za-z\s.]+)'  # Matches the full name
+suffix_pattern = r',\s?([A-Za-z\s]+)'  # Matches the suffix
+gender_pattern = r'(\b[A-Za-z]+\b)$'  # Matches the last word as the gender
+
+# Find the matches of the patterns in the string
+name_match = re.search(name_pattern, substring3)
+suffix_match = re.search(suffix_pattern, substring3)
+gender_match = re.search(gender_pattern, substring3)
+
+if name_match:
+    full_name = name_match.group(1)
+    name_parts = full_name.split()
+    
+    first_name = name_parts[0]
+    middle_name = name_parts[1] if len(name_parts) > 2 else ''
+    last_name = name_parts[-1]
+    
+    print("First name:", first_name)
+    print("Middle name:", middle_name)
+    print("Last name:", last_name)
+else:
+    print("No name found.")
+
+if suffix_match:
+    suffix = suffix_match.group(1)
+    print("Suffix:", suffix)
+else:
+    print("No suffix found.")
+
+if gender_match:
+    gender = gender_match.group(1)
+    print("Gender:", gender)
+else:
+    print("No gender found.")
